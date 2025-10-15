@@ -1,0 +1,118 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    name: Build binary
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Linux
+          - { os: linux, arch: amd64 }
+          - { os: linux, arch: "386" }
+          - { os: linux, arch: arm64 }
+          - { os: linux, arch: arm, goarm: "6" }
+          - { os: linux, arch: arm, goarm: "7" }
+          - { os: linux, arch: mips, gomips: softfloat }
+          - { os: linux, arch: mipsle, gomips: softfloat }
+          - { os: linux, arch: mips64, gomips: softfloat }
+          - { os: linux, arch: mips64le, gomips: softfloat }
+          - { os: linux, arch: s390x }
+          - { os: linux, arch: ppc64le }
+          - { os: linux, arch: riscv64 }
+
+          # Windows
+          - { os: windows, arch: amd64 }
+          - { os: windows, arch: "386" }
+          - { os: windows, arch: arm64 }
+
+          # macOS
+          - { os: darwin, arch: amd64 }
+          - { os: darwin, arch: arm64 }
+
+          # Other Unix
+          - { os: freebsd, arch: amd64 }
+          - { os: freebsd, arch: "386" }
+          - { os: freebsd, arch: arm64 }
+          - { os: openbsd, arch: amd64 }
+          - { os: openbsd, arch: "386" }
+          - { os: openbsd, arch: arm64 }
+          - { os: netbsd, arch: amd64 }
+          - { os: netbsd, arch: "386" }
+          - { os: dragonfly, arch: amd64 }
+          - { os: solaris, arch: amd64 }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.25'
+
+      - name: Get the version
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Build
+        run: |
+          go build -v -trimpath -o dir2text -ldflags "-s -w -X main.version=${{ env.version }}" ./cmd/dir2text
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+
+      - name: Archive
+        run: |
+          BINARY_NAME="dir2text-${{ env.version }}-${{ matrix.os }}-${{ matrix.arch }}"
+          if [[ -n "${{ matrix.goarm }}" ]]; then
+            BINARY_NAME="${BINARY_NAME}v${{ matrix.goarm }}"
+          elif [[ -n "${{ matrix.gomips }}" ]]; then
+            BINARY_NAME="${BINARY_NAME}-${{ matrix.gomips }}"
+          fi
+
+          if [ '${{ matrix.os }}' = 'windows' ]; then
+            mv dir2text dir2text.exe
+            zip "${BINARY_NAME}.zip" dir2text.exe
+          else
+            tar -czvf "${BINARY_NAME}.tar.gz" dir2text
+          fi
+          echo "ASSET_NAME=${BINARY_NAME}" >> $GITHUB_ENV
+          echo "ASSET_PATH=$(ls ${BINARY_NAME}.*)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: ${{ env.ASSET_PATH }}
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Get the version
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.version }}
+          name: Release ${{ env.version }}
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

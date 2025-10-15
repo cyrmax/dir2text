@@ -13,3 +13,5 @@
 !**/*.go
 go.mod
 !README.md
+!.github/
+!.github/**
