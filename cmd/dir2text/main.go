@@ -50,13 +50,22 @@ func main() {
 	}
 	defer outputFile.Close()
 
+	ignoreProcessor := app.NewIgnoreProcessor(outputFileName)
+	ignoreProcessor.AddCommonIgnores()
 	err = filepath.WalkDir(workingDir, func(currentPath string, dirInfo fs.DirEntry, walkError error) error {
 		if walkError != nil {
 			return walkError
 		}
+		isIgnored := ignoreProcessor.IsPathShouldBeIgnored(currentPath)
 		if dirInfo.IsDir() {
+			if isIgnored {
+				return filepath.SkipDir
+			}
 			return nil
 		} else {
+			if isIgnored {
+				return nil
+			}
 			isBinary, err := app.IsFileBinary(currentPath)
 			if err != nil {
 				return fmt.Errorf("failed to read file %s: %w", currentPath, err)
