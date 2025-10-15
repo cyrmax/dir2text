@@ -11,7 +11,7 @@
 !internal/
 !internal/**/
 !**/*.go
-go.mod
+!go.mod
 !README.md
 !.github/
 !.github/**
