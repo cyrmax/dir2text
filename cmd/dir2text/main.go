@@ -10,11 +10,20 @@ import (
 	"path/filepath"
 )
 
+var version string
+
 func main() {
 	workingDirArg := flag.String("dir", "", "Specify custom working directory. Current working directory is used by default")
 	outputFilenameArg := flag.String("output", "", "Specify custom output file name. If empty, output file will have the same name as the working directory")
 	overwriteArg := flag.Bool("overwrite", false, "Set to true to automatically overwrite the output file if it already exists. Defaults to false for safety")
+	versionArg := flag.Bool("version", false, "If specified, outputs the program version and exits")
 	flag.Parse()
+
+	if *versionArg {
+		fmt.Printf("dir2text version %s", version)
+		return
+	}
+
 	if *workingDirArg != "" {
 		if err := os.Chdir(*workingDirArg); err != nil {
 			fmt.Printf("%s\n", err.Error())
