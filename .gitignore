@@ -1,0 +1,15 @@
+# AllowList style gitignore
+# Ignore everything by default to keep repo clean
+*
+
+# Re-include this gitignore
+!.gitignore
+
+# Re-include what is needed
+!cmd/
+!cmd/**/
+!internal/
+!internal/**/
+!**/*.go
+go.mod
+!README.md
