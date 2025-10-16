@@ -34,7 +34,11 @@ func NewGitIgnoreFromFile(filePath string) (*GitIgnore, error) {
 	}
 	defer file.Close()
 
-	gi.basePath = filepath.Dir(filePath)
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, err
+	}
+	gi.basePath = filepath.Dir(absPath)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := purifyPattern(scanner.Text())
