@@ -4,9 +4,7 @@ import (
 	"dir2text/internal/app"
 	"flag"
 	"fmt"
-	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 )
 
@@ -41,7 +39,7 @@ func main() {
 	if *outputFilenameArg != "" {
 		outputFileName = *outputFilenameArg
 	} else {
-		outputFileName = path.Join(workingDir, workingDirName) + ".txt"
+		outputFileName = filepath.Join(workingDir, workingDirName) + ".txt"
 	}
 	if _, err := os.Stat(outputFileName); err == nil {
 		if !*overwriteArg {
@@ -59,13 +57,16 @@ func main() {
 	}
 	defer outputFile.Close()
 
-	ignoreProcessor := app.NewIgnoreProcessor(outputFileName)
-	ignoreProcessor.AddCommonIgnores()
-	err = filepath.WalkDir(workingDir, func(currentPath string, dirInfo fs.DirEntry, walkError error) error {
+	gitIgnore, err := app.NewGitIgnoreFromFile(".gitignore")
+	if err != nil {
+		fmt.Println("No gitignore found. Default one will be used")
+	}
+
+	err = filepath.WalkDir(workingDir, func(currentPath string, dirInfo os.DirEntry, walkError error) error {
 		if walkError != nil {
 			return walkError
 		}
-		isIgnored := ignoreProcessor.IsPathShouldBeIgnored(currentPath)
+		isIgnored := gitIgnore.Match(currentPath)
 		if dirInfo.IsDir() {
 			if isIgnored {
 				return filepath.SkipDir
